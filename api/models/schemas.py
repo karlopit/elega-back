@@ -6,6 +6,14 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
+class UserRole(str, Enum):
+    """Supported account roles."""
+
+    admin = "admin"
+    staff = "staff"
+    user = "user"
+
+
 class UserRegisterRequest(BaseModel):
     """Request body for creating a customer account."""
 
@@ -30,8 +38,31 @@ class AuthResponse(BaseModel):
     refresh_token: str | None = None
     user_id: str
     email: EmailStr
-    role: str
+    role: UserRole
 
+
+class UserResponse(BaseModel):
+    """Account data returned to admins for user management."""
+
+    id: str
+    email: EmailStr
+    full_name: str | None = None
+    role: UserRole
+    created_at: datetime | None = None
+
+
+class UserRoleUpdateRequest(BaseModel):
+    """Request body for changing a user's role."""
+
+    role: UserRole
+
+class UserCreateRequest(BaseModel):
+    """Request body for an admin creating a staff or admin account directly."""
+
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(min_length=1, max_length=120)
+    role: UserRole
 
 class ProductBase(BaseModel):
     """Shared product fields."""
@@ -39,7 +70,7 @@ class ProductBase(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=2000)
     price: Decimal = Field(gt=0, decimal_places=2)
-    currency: str = Field(default="USD", min_length=3, max_length=3)
+    currency: str = Field(default="PHP", min_length=3, max_length=3)
     image_url: str | None = Field(default=None, max_length=2048)
     category: str | None = Field(default=None, max_length=80)
     stock_quantity: int = Field(ge=0)

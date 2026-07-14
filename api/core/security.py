@@ -4,24 +4,31 @@ from gotrue.errors import AuthApiError
 
 from db.database import get_supabase_client
 from core.config import get_settings
+from models.schemas import UserRole
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_user_role(user) -> str:
-    """Determine a user's role based on email configuration and metadata."""
+    """Determine a user's role based on email configuration and metadata.
+
+    The admin_emails allowlist always wins (bootstrap admins). Otherwise the
+    role stored in user_metadata is used, set either at registration or later
+    by an admin through PATCH /users/{user_id}/role.
+    """
     settings = get_settings()
     if user.email in settings.admin_emails:
-        return "admin"
-    if user.user_metadata and user.user_metadata.get("role") == "admin":
-        return "admin"
-    return "user"
+        return UserRole.admin.value
+
+    metadata_role = user.user_metadata.get("role") if user.user_metadata else None
+    if metadata_role in (UserRole.admin.value, UserRole.staff.value):
+        return metadata_role
+
+    return UserRole.user.value
 
 
-def require_authenticated_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> str:
-    """Validate a bearer token with Supabase Auth and return the user id."""
+def _get_authenticated_user(credentials: HTTPAuthorizationCredentials | None):
+    """Validate a bearer token with Supabase Auth and return the auth user object."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -43,6 +50,30 @@ def require_authenticated_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired authentication token.",
+        )
+
+    return user
+
+
+def require_authenticated_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> str:
+    """Validate a bearer token and return the authenticated user's id."""
+    user = _get_authenticated_user(credentials)
+    return user.id
+
+
+def require_staff_or_admin_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> str:
+    """Validate a bearer token and ensure the caller has staff or admin privileges."""
+    user = _get_authenticated_user(credentials)
+    role = get_user_role(user)
+
+    if role not in (UserRole.admin.value, UserRole.staff.value):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff or admin privileges required.",
         )
 
     return user.id
@@ -51,32 +82,11 @@ def require_authenticated_user(
 def require_admin_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> str:
-    """Validate a bearer token with Supabase Auth, verify admin role, and return user id."""
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication is required.",
-        )
-
-    supabase = get_supabase_client()
-
-    try:
-        user_response = supabase.auth.get_user(credentials.credentials)
-    except AuthApiError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired authentication token.",
-        ) from None
-
-    user = getattr(user_response, "user", None)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired authentication token.",
-        )
-
+    """Validate a bearer token and ensure the caller has admin privileges."""
+    user = _get_authenticated_user(credentials)
     role = get_user_role(user)
-    if role != "admin":
+
+    if role != UserRole.admin.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required.",

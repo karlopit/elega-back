@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     frontend_origins: list[AnyHttpUrl] = Field(default_factory=list)
     supabase_url: AnyHttpUrl
     supabase_key: str = Field(min_length=1)
+    # Required only for /users endpoints (admin user management). The service
+    # role key bypasses Row Level Security, so it is never sent to clients
+    # and is only used server-side via get_supabase_admin_client().
+    supabase_service_role_key: str | None = Field(default=None)
     admin_emails: list[str] = Field(default_factory=list)
     admin_registration_secret: str | None = Field(default=None)
 

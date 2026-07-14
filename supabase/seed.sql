@@ -11,8 +11,8 @@ insert into public.products (
 (
     'Classic White Tee',
     'Soft cotton everyday T-shirt with a regular fit.',
-    24.99,
-    'USD',
+    1299.00,
+    'PHP',
     null,
     'tops',
     50,
@@ -21,8 +21,8 @@ insert into public.products (
 (
     'Relaxed Denim Jacket',
     'Midweight denim jacket designed for layering.',
-    89.99,
-    'USD',
+    4599.00,
+    'PHP',
     null,
     'outerwear',
     20,
@@ -31,8 +31,8 @@ insert into public.products (
 (
     'Tailored Black Trousers',
     'Clean front trousers with a tapered leg.',
-    64.99,
-    'USD',
+    3299.00,
+    'PHP',
     null,
     'bottoms',
     35,

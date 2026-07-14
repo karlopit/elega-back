@@ -9,7 +9,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from core.config import get_settings
-from routers import auth, cart, orders, products
+from routers import auth, cart, orders, products, users
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -34,6 +34,7 @@ app.include_router(auth.router)
 app.include_router(products.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
+app.include_router(users.router)
 
 
 @app.exception_handler(RateLimitExceeded)
